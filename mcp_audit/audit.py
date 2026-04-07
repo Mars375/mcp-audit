@@ -44,7 +44,7 @@ class MCPAudit:
         
         # Extraire les dépendances
         dependencies = self._extract_dependencies()
-        self.results['total_dependencies'] = len(dependencies)
+        self.results['summary']['total_dependencies'] = len(dependencies)
         
         # Analyser chaque dépendance
         for dep in dependencies:
