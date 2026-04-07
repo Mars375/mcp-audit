@@ -1,0 +1,43 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "python",
+      "args": ["-m", "mcp.server.filesystem"],
+      "env": {
+        "HOME": "/home/orion"
+      }
+    },
+    "github": {
+      "command": "python",
+      "args": ["-m", "mcp.server.github"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  },
+  "tools": {
+    "file-browser": {
+      "name": "File Browser",
+      "description": "Browse the filesystem",
+      "uri": "https://github.com/modelprotocol/mcp-server-filesystem/blob/main/src/tools.py"
+    },
+    "github-issues": {
+      "name": "GitHub Issues",
+      "description": "Manage GitHub issues",
+      "uri": "https://github.com/modelprotocol/mcp-server-github/blob/main/src/tools.py"
+    },
+    "test-tool": {
+      "name": "Test Tool",
+      "description": "A tool for testing",
+      "uri": "https://example.com/test-tool.py"
+    }
+  },
+  "resources": {
+    "current-directory": {
+      "uri": "file:///home/orion/current"
+    },
+    "home-directory": {
+      "uri": "file:///home/orion"
+    }
+  }
+}

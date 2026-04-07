@@ -1,0 +1,31 @@
+<rich.panel.Panel object at 0x7fff77c3ea50>
+
+        Audit Summary         
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━┓
+┃ Metric             ┃ Value ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━┩
+│ Total Dependencies │ 0     │
+│ Tools              │ 3     │
+│ Resources          │ 2     │
+│ Servers            │ 2     │
+│ Vulnerabilities    │ 1     │
+│ Quality Issues     │ 0     │
+└────────────────────┴───────┘
+
+
+                             Dependencies Analysis                              
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Name              ┃ Type     ┃ Quality Score ┃ Vulnerabilities ┃ Maintenance ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ file-browser      │ tool     │ 90            │ 0               │ warning     │
+│ github-issues     │ tool     │ 90            │ 0               │ warning     │
+│ test-tool         │ tool     │ 90            │ 1               │ warning     │
+│ current-directory │ resource │ 90            │ 0               │ warning     │
+│ home-directory    │ resource │ 90            │ 0               │ warning     │
+│ filesystem        │ server   │ 90            │ 0               │ warning     │
+│ github            │ server   │ 90            │ 0               │ warning     │
+└───────────────────┴──────────┴───────────────┴─────────────────┴─────────────┘
+
+
+
+
