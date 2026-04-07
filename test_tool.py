@@ -47,7 +47,6 @@ def test_basic_audit():
     
     print(f"📄 Rapport généré: {output_path}")
     
-    return True
 
 
 if __name__ == "__main__":

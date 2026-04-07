@@ -46,13 +46,12 @@ def test_api_integration():
                 print(f"✅ npm API analysé: {dep['name']}")
         
         print("✅ Test d'intégration API: OK")
-        return True
         
     except Exception as e:
         print(f"❌ Test d'intégration API: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        raise
 
 def test_sample_config():
     """Test le chargement de la configuration sample"""
@@ -70,11 +69,10 @@ def test_sample_config():
         assert len(config.get_server_names()) == 2
         
         print("✅ Configuration: OK")
-        return True
         
     except Exception as e:
         print(f"❌ Configuration: {e}")
-        return False
+        raise
 
 def main():
     """Run API integration tests"""
