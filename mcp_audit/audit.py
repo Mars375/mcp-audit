@@ -10,10 +10,12 @@ from pathlib import Path
 import requests
 import re
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 from dateutil import parser
 
 from .config import MCPConfig, MCPDependency
+
+from .scoring import compute_trust_score
 
 
 class MCPAudit:
@@ -106,10 +108,21 @@ class MCPAudit:
                     print(f"  📦 Ressource: {resource_name}")
 
             for server_name, server_config in self.config.servers.items():
+                command = server_config.get('command', '')
+                # Pour npx/uvx, extraire le package depuis args comme source
+                resolved_source = command
+                args = server_config.get('args', [])
+                if command in ('npx', 'uvx') and args:
+                    # Trouver le premier arg qui est un nom de package (pas un flag)
+                    for arg in args:
+                        if not arg.startswith('-'):
+                            resolved_source = f"npm:{arg}" if command == 'npx' else f"pypi:{arg}"
+                            break
+
                 dep = MCPDependency(
                     name=server_name,
                     type="server",
-                    source=server_config.get('command'),
+                    source=resolved_source,
                     metadata=server_config,
                 )
                 dependencies.append(dep)
@@ -142,6 +155,9 @@ class MCPAudit:
             'maintenance_status': maintenance_status,
             'metadata': dependency.metadata
         }
+
+        # Compute aggregated trust score
+        result['trust_score'] = compute_trust_score(result)
 
         self.results['dependencies'].append(result)
 
@@ -262,21 +278,30 @@ class MCPAudit:
             if github_info:
                 maintenance_info.update(github_info)
 
-            # Verifier les releases via API npm pour les packages npm
-            if dependency.source.startswith('npm:') or '.npmjs.com' in (dependency.source or ''):
-                npm_info = self._check_npm_package(dependency)
-                if npm_info:
-                    maintenance_info.update(npm_info)
+            # Verifier les releases via API npm / PyPI selon la source
+            if dependency.source:
+                if dependency.source.startswith('npm:') or '.npmjs.com' in dependency.source:
+                    pkg_info = self._check_npm_package(dependency)
+                    if pkg_info:
+                        maintenance_info.update(pkg_info)
+                elif dependency.source.startswith('pypi:'):
+                    pkg_info = self._check_pypi_package(dependency)
+                    if pkg_info:
+                        maintenance_info.update(pkg_info)
 
-            # Pour les serveurs Claude Code avec npx args, essayer npm
+            # Pour les serveurs avec npx/uvx args, essayer le bon registry
             args = dependency.metadata.get('args', [])
-            if args:
+            command = dependency.metadata.get('command', '')
+            if args and command in ('npx', 'uvx'):
                 for arg in args:
-                    if arg.startswith('@') or (not arg.startswith('-') and '/' in arg):
-                        npm_info = self._check_npm_package_by_name(arg)
-                        if npm_info:
-                            maintenance_info.update(npm_info)
-                            break
+                    if not arg.startswith('-'):
+                        if command == 'npx':
+                            pkg_info = self._check_npm_package_by_name(arg)
+                        else:
+                            pkg_info = self._check_pypi_package_by_name(arg)
+                        if pkg_info:
+                            maintenance_info.update(pkg_info)
+                        break
 
         except Exception as e:
             if self.verbose:
@@ -288,6 +313,8 @@ class MCPAudit:
         """Extrait le nom du package a partir de la source."""
         if source.startswith('npm:'):
             return source[4:]
+        elif source.startswith('pypi:'):
+            return source[5:]
         elif 'github.com' in source:
             match = re.search(r'github\.com/([^/]+/[^/]+?)(?:\.git)?$', source)
             if match:
@@ -430,10 +457,10 @@ class MCPAudit:
     def _check_npm_package_by_name(self, package_name: str) -> Optional[Dict[str, Any]]:
         """Verifie les infos d'un package npm par nom."""
         try:
-            # Nettoyer le nom du package (enlever les prefixes de scope si necessaire)
-            clean_name = package_name.strip('@').replace('@', '/') if '/' in package_name else package_name
+            # URL-encode le nom du package (requis pour les scoped packages @scope/name)
+            encoded_name = quote(package_name, safe='')
 
-            api_url = f"https://registry.npmjs.org/{clean_name}"
+            api_url = f"https://registry.npmjs.org/{encoded_name}"
             response = requests.get(api_url, timeout=10)
             if response.status_code == 200:
                 data = response.json()
@@ -461,6 +488,55 @@ class MCPAudit:
         except Exception as e:
             if self.verbose:
                 print(f"  ⚠️  Erreur npm pour {package_name}: {e}")
+
+        return None
+
+    def _check_pypi_package(self, dependency: MCPDependency) -> Optional[Dict[str, Any]]:
+        """Verifie les infos d'un package PyPI."""
+        try:
+            package_name = self._extract_package_name(dependency.source)
+            if not package_name:
+                return None
+            return self._check_pypi_package_by_name(package_name)
+        except Exception as e:
+            if self.verbose:
+                print(f"  ⚠️  Erreur lors de la verification PyPI pour {dependency.name}: {e}")
+        return None
+
+    def _check_pypi_package_by_name(self, package_name: str) -> Optional[Dict[str, Any]]:
+        """Verifie les infos d'un package PyPI par nom."""
+        try:
+            api_url = f"https://pypi.org/pypi/{package_name}/json"
+            response = requests.get(api_url, timeout=10)
+            if response.status_code == 200:
+                data = response.json().get('info', {})
+                releases = response.json().get('releases', {})
+
+                latest_version = data.get('version')
+                release_entries = releases.get(latest_version, []) if latest_version else []
+                last_update = 'unknown'
+                if release_entries:
+                    last_update = release_entries[-1].get('upload_time_iso_8601', 'unknown')
+
+                releases_count = len([v for v in releases.values() if isinstance(v, list)])
+                release_frequency = 'unknown'
+                if releases_count > 50:
+                    release_frequency = 'high'
+                elif releases_count > 10:
+                    release_frequency = 'medium'
+                else:
+                    release_frequency = 'low'
+
+                return {
+                    'last_update': last_update,
+                    'commit_frequency': release_frequency,
+                    'latest_version': latest_version,
+                    'health': 'good' if latest_version else 'warning'
+                }
+
+        except Exception as e:
+            if self.verbose:
+                print(f"  ⚠️  Erreur PyPI pour {package_name}: {e}")
 
         return None
 

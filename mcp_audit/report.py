@@ -30,6 +30,11 @@ class ReportGenerator:
         # Résumé
         report_lines.append(self._generate_summary())
         report_lines.append("")
+
+        # Trust scores per server
+        if self.results['dependencies']:
+            report_lines.append(self._generate_trust_score_table())
+            report_lines.append("")
         
         # Dépendances
         if self.results['dependencies']:
@@ -58,6 +63,10 @@ class ReportGenerator:
             'dependencies': self.results['dependencies'],
             'vulnerabilities': self.results['vulnerabilities'],
             'quality_issues': self.results['quality_issues'],
+            'trust_scores': {
+                dep['name']: dep.get('trust_score', {})
+                for dep in self.results['dependencies']
+            },
             'recommendations': self.results['recommendations']
         }
     
@@ -81,6 +90,40 @@ class ReportGenerator:
         
         return capture.get()
     
+    def _generate_trust_score_table(self) -> str:
+        """Génère le tableau des scores de confiance agrégés par serveur."""
+        table = Table(title="🔒 Trust Score per Server", show_header=True, header_style="bold magenta")
+        table.add_column("Server", style="cyan", min_width=16)
+        table.add_column("Score", justify="right")
+        table.add_column("Grade", justify="center")
+        table.add_column("Quality", justify="right")
+        table.add_column("Security", justify="right")
+        table.add_column("Maint.", justify="right")
+        table.add_column("Supply", justify="right")
+        table.add_column("Vulns", justify="right")
+
+        for dep in self.results['dependencies']:
+            ts = dep.get('trust_score', {})
+            score = ts.get('score', 0)
+            color = ts.get('color', 'white')
+            grade = ts.get('grade', '?')
+            vuln_count = len(dep.get('vulnerabilities', []))
+
+            table.add_row(
+                dep['name'],
+                f"[{color}]{score}/100[/]",
+                f"[{color}]{grade}[/]",
+                str(ts.get('quality', 0)),
+                str(ts.get('security', 0)),
+                str(ts.get('maintenance', 0)),
+                str(ts.get('supply_chain', 0)),
+                str(vuln_count),
+            )
+
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
     def _generate_dependencies_table(self) -> str:
         """Génère le tableau des dépendances."""
         table = Table(title="Dependencies Analysis", show_header=True, header_style="bold magenta")

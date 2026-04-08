@@ -21,8 +21,10 @@ Validation : `mcp-audit scan --config ~/.claude/settings.json` produit un rappor
 
 ---
 
-## [ ] P2 — Score de confiance agrégé par serveur MCP
+## [x] P2 — Score de confiance agrégé par serveur MCP
 **Objectif** : Score composite (qualité + sécurité + maintenance + supply chain) affiché en une ligne par serveur.
+
+**Résultat** : Implémenté 2026-04-08. Support npm scoped + PyPI, score /100 par serveur, couleurs Rich, 34 tests verts.
 
 Validation : rapport terminal avec score /100 par serveur, couleur rouge/jaune/vert.
 
