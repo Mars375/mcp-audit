@@ -30,8 +30,10 @@ Validation : rapport terminal avec score /100 par serveur, couleur rouge/jaune/v
 
 ---
 
-## [ ] P3 — Mode CI (exit code non-zéro si score < seuil)
+## [x] P3 — Mode CI (exit code non-zéro si score < seuil)
 **Objectif** : Utilisable dans un pipeline GitHub Actions pour bloquer un merge si un serveur MCP est risqué.
+
+**Résultat** : Implémenté 2026-04-08. Option --fail-under <score>, exit 1 si serveur < seuil, message clair, 9 tests.
 
 Validation : `mcp-audit scan --fail-under 70` retourne exit code 1 si un serveur < 70.
 
