@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "generated_at": "2026-04-07T04:07:00Z",
+    "version": "1.0.0"
+  },
+  "summary": {
+    "total_dependencies": 1,
+    "tools": 0,
+    "resources": 0,
+    "servers": 1,
+    "vulnerabilities": 0,
+    "quality_issues": 0,
+    "smithery_servers": 0,
+    "transitive_deps": 0,
+    "transitive_vulns": 0
+  },
+  "dependencies": [
+    {
+      "name": "s1",
+      "type": "server",
+      "source": "",
+      "quality_score": 70,
+      "vulnerabilities": [],
+      "maintenance_status": {
+        "last_update": "unknown",
+        "commit_frequency": "unknown",
+        "issues_count": 0,
+        "health": "unknown",
+        "stars": 0,
+        "last_release": null
+      },
+      "metadata": {},
+      "trust_score": {
+        "score": 48,
+        "quality": 17,
+        "security": 25,
+        "maintenance": 6,
+        "supply_chain": 0,
+        "grade": "C",
+        "color": "red"
+      }
+    }
+  ],
+  "vulnerabilities": [],
+  "quality_issues": [],
+  "trust_scores": {
+    "s1": {
+      "score": 48,
+      "quality": 17,
+      "security": 25,
+      "maintenance": 6,
+      "supply_chain": 0,
+      "grade": "C",
+      "color": "red"
+    }
+  },
+  "recommendations": []
+}

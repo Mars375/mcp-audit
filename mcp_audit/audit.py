@@ -22,6 +22,7 @@ from .smithery import (
     fetch_server_info,
     compute_smithery_bonus,
 )
+from .supply_chain import analyze_transitive_deps
 
 
 class MCPAudit:
@@ -38,7 +39,9 @@ class MCPAudit:
                 'servers': 0,
                 'vulnerabilities': 0,
                 'quality_issues': 0,
-                'smithery_servers': 0
+                'smithery_servers': 0,
+                'transitive_deps': 0,
+                'transitive_vulns': 0,
             },
             'dependencies': [],
             'vulnerabilities': [],
@@ -176,6 +179,13 @@ class MCPAudit:
             result['trust_score']['score'] = min(100, result['trust_score']['score'] + total_bonus)
             result['trust_score']['smithery_bonus'] = total_bonus
             self.results['summary']['smithery_servers'] += 1
+
+        # Transitive dependency analysis (P6)
+        transitive = self._analyze_transitive(dependency)
+        if transitive:
+            result['transitive'] = transitive
+            self.results['summary']['transitive_deps'] += transitive.get('total_deps', 0)
+            self.results['summary']['transitive_vulns'] += transitive.get('total_vulns', 0)
 
         self.results['dependencies'].append(result)
 
@@ -584,6 +594,54 @@ class MCPAudit:
                 print(f"  ⚠️  Smithery: {qualified_name} not found in registry")
 
         return server_info
+
+    def _analyze_transitive(self, dependency: MCPDependency) -> Optional[Dict[str, Any]]:
+        """Analyze transitive dependencies for npm/PyPI packages."""
+        source = dependency.source
+        if not source:
+            return None
+
+        package_name = None
+        ecosystem = None
+
+        # Determine ecosystem and package name
+        if source.startswith('npm:'):
+            package_name = source[4:]
+            ecosystem = 'npm'
+        elif source.startswith('pypi:'):
+            package_name = source[5:]
+            ecosystem = 'PyPI'
+        else:
+            # Try to infer from command/args
+            command = dependency.metadata.get('command', '')
+            args = dependency.metadata.get('args', [])
+            if command == 'npx' and args:
+                for arg in args:
+                    if not arg.startswith('-'):
+                        package_name = arg
+                        ecosystem = 'npm'
+                        break
+            elif command == 'uvx' and args:
+                for arg in args:
+                    if not arg.startswith('-'):
+                        package_name = arg
+                        ecosystem = 'PyPI'
+                        break
+
+        if not package_name or not ecosystem:
+            return None
+
+        if self.verbose:
+            print(f"  🔗 Transitive analysis: {package_name} ({ecosystem})")
+
+        try:
+            return analyze_transitive_deps(
+                package_name, ecosystem, verbose=self.verbose
+            )
+        except Exception as e:
+            if self.verbose:
+                print(f"  ⚠️  Transitive analysis failed for {package_name}: {e}")
+            return None
 
     def _generate_recommendations(self):
         """Genere des recommandations basees sur l'audit."""

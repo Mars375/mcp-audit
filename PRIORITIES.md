@@ -57,7 +57,30 @@ Validation : serveurs avec `smithery:ns/server` ou `@smithery/cli` dans args →
 
 ---
 
-## [ ] P6 — Score de risque supply-chain avancé
+## [x] P6 — Score de risque supply-chain avancé
 **Objectif** : Analyse transitive des dépendances npm/PyPI des serveurs MCP.
 
-Étendre l'audit au-delà du package direct : vérifier les sous-dépendances pour vulnérabilités et risques. Utiliser `pip audit` et `npm audit` quand disponibles.
+**Résultat** : Implémenté 2026-04-08. Module `supply_chain.py` complet : résolution BFS arbre de dépendances (npm registry + PyPI API), vérification OSV.dev par sous-dépendance, support CLI `npm audit` / `pip-audit` si disponibles, score de risque transitif 0-100. Intégré dans audit.py + report.py (section transitive). 43 tests unitaires.
+
+Validation : serveurs npm/PyPI → arbre de dépendances résolu avec vulnérabilités transitives dans le rapport.
+
+---
+
+## [ ] P7 — Score de risque supply-chain dans le trust score composite
+**Objectif** : Intégrer le `transitive.risk_score` de P6 dans le pillar supply-chain de `scoring.py`.
+
+Ajuster `_supply_chain_pillar()` pour pénaliser les serveurs dont le risque transitif est élevé (risk_score > 50 → -10, > 75 → -20). Afficher le détail dans le JSON report.
+
+---
+
+## [ ] P8 — SBOM export (CycloneDX / SPDX)
+**Objectif** : Exporter la liste complète des dépendances transitives au format CycloneDX JSON ou SPDX.
+
+Ajouter option CLI `--sbom cyclonedx|spdx`. Utilise les données de `supply_chain.py` pour générer un SBOM standardisé. Intégration CI possible avec dependency-track ou grype.
+
+---
+
+## [ ] P9 — Cache intelligent des requêtes registry
+**Objectif** : Mettre en cache les réponses npm/PyPI/OSV.dev pour accélérer les audits répétés.
+
+Cache local JSON avec TTL (24h par défaut). Réduit les appels réseau de ~80% en usage quotidien. Option `--no-cache` pour forcer le refresh.
