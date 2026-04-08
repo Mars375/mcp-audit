@@ -2,9 +2,13 @@
 
 CLI Python pour auditer les dépendances MCP — qualité, sécurité, maintenance, risques supply chain.
 
+Lit votre config MCP, interroge OSV.dev + GitHub API + npm registry, produit un rapport terminal + JSON.
+Mode CI optionnel. Supporte les formats **natif**, **Claude Code** (`~/.claude/settings.json`), et **`.mcp.json`**.
+
 ## 🚀 Fonctionnalités
 
-- ✅ **Configuration MCP** : Parsing avec validation Pydantic
+- ✅ **Multi-format** : Natif mcp-audit, Claude Code (`mcpServers`), `.mcp.json`
+- ✅ **Auto-détection** : Trouve automatiquement votre config MCP
 - ✅ **Audit qualité** : Évaluation 0-100 basée sur métriques réelles
 - ✅ **Sécurité** : Détection de vulnérabilités via OSV.dev
 - ✅ **Maintenance** : Statut GitHub, fréquence des commits, releases
@@ -16,7 +20,7 @@ CLI Python pour auditer les dépendances MCP — qualité, sécurité, maintenan
 
 ```bash
 # Cloner le repo
-git clone <repo-url>
+git clone https://github.com/Mars375/mcp-audit.git
 cd mcp-audit
 
 # Installer les dépendances
@@ -27,186 +31,132 @@ pip install -r requirements.txt
 
 ### Basic usage
 ```bash
-# Audit interactif avec affichage détaillé
+# Audit interactif — auto-detecte le fichier de config
+python main.py --verbose
+
+# Specifier un fichier explicitement
 python main.py --config sample_config.json --verbose
 
-# Mode CI (rapport JSON seulement pour CI/CD)
+# Auditer une config Claude Code
+python main.py --config ~/.claude/settings.json --verbose
+
+# Auditer un .mcp.json projet
+python main.py --config .mcp.json
+
+# Mode CI (rapport JSON seulement)
 python main.py --ci --output audit-report.json
-
-# Spécifier un fichier de configuration personnalisé
-python main.py --config /path/to/your/mcp-config.json
 ```
 
-### Configuration requise pour les APIs
+### Auto-détection des chemins
 
-#### GitHub API
-```bash
-# Optionnel: Définir un token GitHub pour plus de limites
-export GITHUB_TOKEN=ghp_your_token_here
-```
+Si `--config` n'est pas spécifié, mcp-audit cherche dans l'ordre :
 
-#### Variables d'environnement
-```bash
-# Token GitHub (optionnel mais recommandé)
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+1. `~/.config/mcp/config.json` (config mcp-audit)
+2. `~/.claude/settings.json` (Claude Code)
+3. `~/.claude.json` (Claude Code legacy)
+4. `./.mcp.json` (projet courant)
 
-# Pour les audits en production
-export MCP_AUDIT_MODE=production
-```
+### Formats de configuration supportés
 
-## 📊 Exemples de rapports
-
-### Rapport terminal
-```bash
-$ python main.py --config sample_config.json --verbose
-🔍 Début de l'audit MCP...
-  📦 Outil: file-browser
-  🔍 Analyse de file-browser...
-  📦 Ressource: current-directory
-  🔍 Analyse de current-directory...
-  📦 Serveur: filesystem
-  🔍 Analyse de filesystem...
-✅ Audit terminé: 7 dépendances analysées
-
-📊 Résumé:
-┏━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
-┃ Total        ┃ 7              ┃
-┃ Vulnérabilités┃ 0              ┃
-┃ Qualité      ┃ 85/100         ┃
-┃ Recommandations┃ 2              ┃
-┗━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━┛
-```
-
-### Rapport JSON
+#### Format natif mcp-audit
 ```json
 {
-  "summary": {
-    "total_dependencies": 7,
-    "tools": 3,
-    "resources": 2,
-    "servers": 2,
-    "vulnerabilities": 0,
-    "quality_issues": 1,
-    "average_quality": 78
-  },
-  "dependencies": [
-    {
-      "name": "file-browser",
-      "type": "tool",
-      "quality_score": 95,
-      "vulnerabilities": [],
-      "maintenance_status": {
-        "health": "good",
-        "last_update": "2024-03-15",
-        "stars": 42
-      }
-    }
-  ],
-  "recommendations": [
-    {
-      "type": "quality",
-      "priority": "medium",
-      "message": "La dépendance 'test-tool' a un faible score de qualité (45/100)"
-    }
-  ]
+  "servers": { "filesystem": { "command": "python -m mcp.server.filesystem" } },
+  "tools": { "browser": { "uri": "https://github.com/org/mcp-browser" } },
+  "resources": { "home": { "uri": "file:///home" } }
 }
 ```
 
-## 🔧 Use Case - Audit de sécurité MCP
-
-### Scénario
-Auditer une configuration MCP critique pour un projet de production :
-
-1. **Configuration MCP**
+#### Format Claude Code / `.mcp.json`
 ```json
 {
-  "servers": {
-    "production-db": {
-      "command": "node server.js",
-      "env": { "NODE_ENV": "production" }
-    }
-  },
-  "tools": {
-    "payment-processor": {
-      "uri": "https://github.com/company/payment-processor"
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {}
     },
-    "auth-service": {
-      "uri": "npm:@company/auth-service@2.1.0"
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": { "API_KEY": "${CONTEXT7_API_KEY}" }
     }
   }
 }
 ```
 
-2. **Exécution de l'audit**
+### Configuration requise pour les APIs
+
 ```bash
-python main.py --config production-mcp.json --ci --output security-audit.json
+# Optionnel: Token GitHub pour plus de limites
+export GITHUB_TOKEN=ghp_your_token_here
 ```
 
-3. **Analyse des résultats**
-- Vérification des vulnérabilités CVE connues
-- Statut de maintenance des dépendances
-- Score qualité global
-- Recommandations prioritaires
+## 🔧 Use Case — Audit Claude Code
+
+### Scénario
+Auditer tous les serveurs MCP configurés dans votre Claude Code :
+
+```bash
+$ python main.py --config ~/.claude/settings.json --verbose
+🔍 Début de l'audit MCP...
+Configuration chargée depuis: /home/user/.claude/settings.json
+Format détecté: claude_code
+Serveurs: 3
+  📦 Serveur (Claude Code, stdio): filesystem
+  📦 Serveur (Claude Code, http): context7
+  📦 Serveur (Claude Code, stdio): github
+✅ Audit terminé: 3 dépendances analysées
+```
+
+## 🔧 Use Case — Audit CI/CD
+
+```bash
+# Pipeline GitHub Actions
+python main.py --ci --output security-audit.json
+```
 
 ## 📁 Structure du projet
 ```
 mcp-audit/
-├── main.py                    # CLI entry point
-├── requirements.txt           # Dépendances
-├── sample_config.json         # Configuration type
-├── audit-report.json          # Rapport généré
+├── main.py                              # CLI entry point
+├── requirements.txt                     # Dépendances
+├── sample_config.json                   # Config type (natif)
+├── sample_claude_code_config.json       # Config type (Claude Code)
 ├── mcp_audit/
 │   ├── __init__.py
-│   ├── config.py              # Parsing configuration
-│   ├── audit.py               # Logique d'audit
-│   └── report.py              # Génération rapports
+│   ├── config.py                        # Parsing config (multi-format)
+│   ├── audit.py                         # Logique d'audit
+│   └── report.py                        # Génération rapports
 └── tests/
-    ├── test_config.py
-    └── test_audit.py
+    ├── test_config.py                   # Tests config natif
+    ├── test_audit.py                    # Tests audit
+    └── test_claude_code_config.py       # Tests format Claude Code
 ```
 
-## ✅ Critères de qualité
+## ✅ Tests
 
-L'outil respecte les bonnes pratiques :
-- ✅ Gestion d'erreurs réseau robuste
-- ✅ Analyse asynchrone pour les APIs externes
-- ✅ Validation de configuration Pydantic
-- ✅ Rapports détaillés et exploitables
-- ✅ Mode CI/CD intégré
-- ✅ Gestion des tokens et sécurité
-
-## 🚀 Développement
-
-### Tests
 ```bash
 # Exécuter tous les tests
-python run_tests.py
+python -m pytest -v
 
-# Exécuter un test spécifique
-python -m unittest tests.test_config
+# Tests du support Claude Code uniquement
+python -m pytest tests/test_claude_code_config.py -v
 ```
-
-### Contribuer
-
-1. Fork le repository
-2. Créer une branche pour votre feature
-3. Faire des tests et commit
-4. Ouvrir un PR avec description détaillée
 
 ## 📈 Performance
 
 - **Temps d'audit** : < 30s pour 50 dépendances
-- **API Rate Limits** : Respect des limites publiques (GitHub: 60/h, OSV.dev: 1000/jour)
+- **API Rate Limits** : Respect des limites publiques
 - **Mémoire** : < 50MB pour 100+ dépendances
-- **Fiabilité** : Gestion des erreurs réseau et timeouts
 
 ## 🔄 Évolution future
 
 - [ ] Support de registres privés
+- [ ] Score de confiance agrégé par serveur (/100)
+- [ ] Mode CI avec exit code non-zéro si score < seuil
+- [ ] GitHub Action prête à l'emploi
 - [ ] Dashboard web intégré
-- [ ] Intégration avec Slack/Teams
-- [ ] Historique d'audit
-- [ ] Alertes automatisées
 
 ## 📄 Licence
 
@@ -216,5 +166,6 @@ MIT License - voir fichier LICENSE
 
 - [MCP Specification](https://modelprotocol.io/)
 - [OSV.dev](https://osv.dev/)
+- [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
 - [GitHub API](https://docs.github.com/en/rest)
 - [Rich CLI](https://github.com/Textualize/rich)
