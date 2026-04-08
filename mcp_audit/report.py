@@ -35,6 +35,11 @@ class ReportGenerator:
         if self.results['dependencies']:
             report_lines.append(self._generate_trust_score_table())
             report_lines.append("")
+
+        # Transitive deps overview
+        if any(dep.get('transitive') for dep in self.results['dependencies']):
+            report_lines.append(self._generate_transitive_section())
+            report_lines.append("")
         
         # Dépendances
         if self.results['dependencies']:
@@ -84,6 +89,8 @@ class ReportGenerator:
         table.add_row("Servers", str(summary['servers']))
         table.add_row("Vulnerabilities", str(summary['vulnerabilities']))
         table.add_row("Quality Issues", str(summary['quality_issues']))
+        table.add_row("Transitive Deps", str(summary.get('transitive_deps', 0)))
+        table.add_row("Transitive Vulns", str(summary.get('transitive_vulns', 0)))
         
         with self.console.capture() as capture:
             self.console.print(table)
@@ -118,6 +125,37 @@ class ReportGenerator:
                 str(ts.get('maintenance', 0)),
                 str(ts.get('supply_chain', 0)),
                 str(vuln_count),
+            )
+
+        with self.console.capture() as capture:
+            self.console.print(table)
+        return capture.get()
+
+    def _generate_transitive_section(self) -> str:
+        """Generate a summary table of transitive dependency analysis."""
+        table = Table(title="🔗 Transitive Dependency Analysis", show_header=True, header_style="bold magenta")
+        table.add_column("Server", style="cyan", min_width=16)
+        table.add_column("Ecosystem", style="yellow")
+        table.add_column("Deps", justify="right")
+        table.add_column("Max Depth", justify="right")
+        table.add_column("Vulnerable", justify="right", style="red")
+        table.add_column("Risk Score", justify="right")
+        table.add_column("Tool", style="dim")
+
+        for dep in self.results['dependencies']:
+            t = dep.get('transitive')
+            if not t:
+                continue
+            risk = t.get('risk_score', 0)
+            risk_color = "red" if risk >= 50 else "yellow" if risk >= 25 else "green"
+            table.add_row(
+                dep['name'],
+                t.get('ecosystem', '?'),
+                str(t.get('total_deps', 0)),
+                str(t.get('max_depth', 0)),
+                str(t.get('vulnerable_deps', 0)),
+                f"[{risk_color}]{risk}/100[/]",
+                ', '.join(t.get('tools_used', [])),
             )
 
         with self.console.capture() as capture:
