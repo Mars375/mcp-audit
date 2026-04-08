@@ -166,26 +166,29 @@ class MCPAudit:
             'metadata': dependency.metadata
         }
 
-        # Compute aggregated trust score
-        result['trust_score'] = compute_trust_score(result)
-
-        # Smithery registry enrichment
+        # Smithery registry enrichment (before trust score so data is available)
         smithery_info = self._check_smithery(dependency)
         if smithery_info:
             result['smithery'] = smithery_info
-            # Apply Smithery bonus to trust score
-            bonus = compute_smithery_bonus(smithery_info)
-            total_bonus = sum(v for v in bonus.values() if isinstance(v, (int, float)))
-            result['trust_score']['score'] = min(100, result['trust_score']['score'] + total_bonus)
-            result['trust_score']['smithery_bonus'] = total_bonus
             self.results['summary']['smithery_servers'] += 1
 
-        # Transitive dependency analysis (P6)
+        # Transitive dependency analysis (P6) — before trust score so risk_score
+        # feeds into the supply-chain pillar (P7)
         transitive = self._analyze_transitive(dependency)
         if transitive:
             result['transitive'] = transitive
             self.results['summary']['transitive_deps'] += transitive.get('total_deps', 0)
             self.results['summary']['transitive_vulns'] += transitive.get('total_vulns', 0)
+
+        # Compute aggregated trust score AFTER all enrichment data is in result
+        result['trust_score'] = compute_trust_score(result)
+
+        # Apply Smithery bonus on top of computed trust score
+        if smithery_info:
+            bonus = compute_smithery_bonus(smithery_info)
+            total_bonus = sum(v for v in bonus.values() if isinstance(v, (int, float)))
+            result['trust_score']['score'] = min(100, result['trust_score']['score'] + total_bonus)
+            result['trust_score']['smithery_bonus'] = total_bonus
 
         self.results['dependencies'].append(result)
 
