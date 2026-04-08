@@ -66,7 +66,7 @@ Validation : serveurs npm/PyPI → arbre de dépendances résolu avec vulnérabi
 
 ---
 
-## [~] P7 — Score de risque supply-chain dans le trust score composite
+## [x] P7 — Score de risque supply-chain dans le trust score composite
 **Objectif** : Intégrer le `transitive.risk_score` de P6 dans le pillar supply-chain de `scoring.py`.
 
 Ajuster `_supply_chain_pillar()` pour pénaliser les serveurs dont le risque transitif est élevé (risk_score > 50 → -10, > 75 → -20). Afficher le détail dans le JSON report.
