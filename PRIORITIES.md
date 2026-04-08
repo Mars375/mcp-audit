@@ -48,10 +48,12 @@ Validation : Action composite valide, inputs documentés, artifact upload automa
 
 ---
 
-## [ ] P5 — Support Smithery registry
+## [x] P5 — Support Smithery registry
 **Objectif** : Détecter et auditer les serveurs MCP installés via Smithery.
 
-Smithery est un registry MCP populaire. Ajouter la résolution automatique des packages Smithery pour scoring qualité + maintenance.
+**Résultat** : Implémenté 2026-04-08. Module smithery.py complet : détection auto (CLI args, source prefix, metadata marker), résolution qualified name, requête registry public + API authentifiée, enrichissement audit (security scan, tools count, transport), bonus scoring (max +10). 34 tests unitaires + integration.
+
+Validation : serveurs avec `smithery:ns/server` ou `@smithery/cli` dans args → enrichis avec données Smithery registry.
 
 ---
 

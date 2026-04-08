@@ -16,6 +16,12 @@ from dateutil import parser
 from .config import MCPConfig, MCPDependency
 
 from .scoring import compute_trust_score
+from .smithery import (
+    is_smithery_source,
+    extract_qualified_name,
+    fetch_server_info,
+    compute_smithery_bonus,
+)
 
 
 class MCPAudit:
@@ -31,7 +37,8 @@ class MCPAudit:
                 'resources': 0,
                 'servers': 0,
                 'vulnerabilities': 0,
-                'quality_issues': 0
+                'quality_issues': 0,
+                'smithery_servers': 0
             },
             'dependencies': [],
             'vulnerabilities': [],
@@ -158,6 +165,17 @@ class MCPAudit:
 
         # Compute aggregated trust score
         result['trust_score'] = compute_trust_score(result)
+
+        # Smithery registry enrichment
+        smithery_info = self._check_smithery(dependency)
+        if smithery_info:
+            result['smithery'] = smithery_info
+            # Apply Smithery bonus to trust score
+            bonus = compute_smithery_bonus(smithery_info)
+            total_bonus = sum(v for v in bonus.values() if isinstance(v, (int, float)))
+            result['trust_score']['score'] = min(100, result['trust_score']['score'] + total_bonus)
+            result['trust_score']['smithery_bonus'] = total_bonus
+            self.results['summary']['smithery_servers'] += 1
 
         self.results['dependencies'].append(result)
 
@@ -539,6 +557,33 @@ class MCPAudit:
                 print(f"  ⚠️  Erreur PyPI pour {package_name}: {e}")
 
         return None
+
+    def _check_smithery(self, dependency: MCPDependency) -> Optional[Dict[str, Any]]:
+        """Check if dependency is a Smithery server and enrich with registry data."""
+        if not is_smithery_source(dependency.source, dependency.metadata):
+            return None
+
+        qualified_name = extract_qualified_name(dependency.source, dependency.metadata)
+        if not qualified_name:
+            if self.verbose:
+                print(f"  📦 Smithery detected for {dependency.name} but no qualified name found")
+            return {"detected": True, "qualified_name": None, "resolved": False}
+
+        if self.verbose:
+            print(f"  🔮 Smithery lookup: {qualified_name}")
+
+        server_info = fetch_server_info(qualified_name, verbose=self.verbose)
+        if server_info:
+            server_info["detected"] = True
+            server_info["resolved"] = True
+            if self.verbose:
+                print(f"  ✅ Smithery: {server_info.get('display_name', qualified_name)} ({server_info.get('tools_count', 0)} tools, scan={'PASS' if server_info.get('security_scan_passed') else 'N/A'})")
+        else:
+            server_info = {"detected": True, "qualified_name": qualified_name, "resolved": False}
+            if self.verbose:
+                print(f"  ⚠️  Smithery: {qualified_name} not found in registry")
+
+        return server_info
 
     def _generate_recommendations(self):
         """Genere des recommandations basees sur l'audit."""
