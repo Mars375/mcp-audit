@@ -13,8 +13,9 @@ Mode CI optionnel. Supporte les formats **natif**, **Claude Code** (`~/.claude/s
 - ✅ **Sécurité** : Détection de vulnérabilités via OSV.dev
 - ✅ **Maintenance** : Statut GitHub, fréquence des commits, releases
 - ✅ **Rapports** : Terminal coloré (Rich) + export JSON
-- ✅ **Mode CI** : Rapport léger pour intégration continue
+- ✅ **Mode CI** : Rapport léger + `--fail-under` pour bloquer les merges
 - ✅ **API externes** : GitHub, OSV.dev, npm registry
+- ✅ **GitHub Action** : Action composite réutilisable pour vos workflows
 
 ## 📦 Installation
 
@@ -45,7 +46,44 @@ python main.py --config .mcp.json
 
 # Mode CI (rapport JSON seulement)
 python main.py --ci --output audit-report.json
+
+# CI gate: échoue si un serveur a un score < 70
+python main.py --ci --fail-under 70
 ```
+
+### GitHub Action — Usage dans vos workflows
+
+Utilisez l'action composite directement dans vos workflows CI :
+
+```yaml
+jobs:
+  mcp-security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MCP Audit
+        uses: Mars375/mcp-audit/.github/actions/mcp-audit@master
+        with:
+          config: '.mcp.json'
+          fail-under: '70'
+          output: mcp-audit-report.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: 'true'
+```
+
+#### Inputs de l'action
+
+| Input | Description | Défaut |
+|-------|-------------|--------|
+| `config` | Chemin vers la config MCP (auto-détecté si vide) | `""` |
+| `fail-under` | Score minimum /100 pour réussir | `""` |
+| `output` | Chemin du rapport JSON | `mcp-audit-report.json` |
+| `github-token` | Token GitHub pour les appels API | `${{ github.token }}` |
+| `python-version` | Version Python | `3.12` |
+| `verbose` | Sortie verbeuse | `false` |
+
+L'action upload automatiquement le rapport en artifact (`mcp-audit-report`), même en cas d'échec.
 
 ### Auto-détection des chemins
 
@@ -113,7 +151,7 @@ Serveurs: 3
 
 ```bash
 # Pipeline GitHub Actions
-python main.py --ci --output security-audit.json
+python main.py --ci --fail-under 70 --output security-audit.json
 ```
 
 ## 📁 Structure du projet
@@ -123,15 +161,23 @@ mcp-audit/
 ├── requirements.txt                     # Dépendances
 ├── sample_config.json                   # Config type (natif)
 ├── sample_claude_code_config.json       # Config type (Claude Code)
+├── .github/
+│   ├── actions/mcp-audit/
+│   │   └── action.yml                   # Action composite réutilisable
+│   └── workflows/
+│       └── audit-example.yml            # Workflow d'exemple
 ├── mcp_audit/
 │   ├── __init__.py
 │   ├── config.py                        # Parsing config (multi-format)
 │   ├── audit.py                         # Logique d'audit
+│   ├── scoring.py                       # Scores de confiance /100
 │   └── report.py                        # Génération rapports
 └── tests/
     ├── test_config.py                   # Tests config natif
     ├── test_audit.py                    # Tests audit
-    └── test_claude_code_config.py       # Tests format Claude Code
+    ├── test_claude_code_config.py       # Tests format Claude Code
+    ├── test_scoring.py                  # Tests scoring
+    └── test_ci_fail_under.py           # Tests mode CI
 ```
 
 ## ✅ Tests
@@ -153,10 +199,9 @@ python -m pytest tests/test_claude_code_config.py -v
 ## 🔄 Évolution future
 
 - [ ] Support de registres privés
-- [ ] Score de confiance agrégé par serveur (/100)
-- [ ] Mode CI avec exit code non-zéro si score < seuil
-- [ ] GitHub Action prête à l'emploi
 - [ ] Dashboard web intégré
+- [ ] Support Smithery registry
+- [ ] Score de risque supply-chain avancé
 
 ## 📄 Licence
 
@@ -167,5 +212,5 @@ MIT License - voir fichier LICENSE
 - [MCP Specification](https://modelprotocol.io/)
 - [OSV.dev](https://osv.dev/)
 - [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code/mcp)
-- [GitHub API](https://docs.github.com/en/rest)
+- [GitHub Actions](https://docs.github.com/en/actions)
 - [Rich CLI](https://github.com/Textualize/rich)

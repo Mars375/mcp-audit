@@ -1,0 +1,69 @@
+name: 'MCP Audit'
+description: 'Audit MCP dependencies for quality, security, maintenance and supply-chain risks'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  config:
+    description: 'Path to MCP configuration file (auto-detected if omitted)'
+    required: false
+    default: ''
+  fail-under:
+    description: 'Minimum trust score (0-100) per server. Fails the workflow if any server is below.'
+    required: false
+    default: ''
+  output:
+    description: 'Output path for the JSON report'
+    required: false
+    default: 'mcp-audit-report.json'
+  github-token:
+    description: 'GitHub token for API calls (uses GITHUB_TOKEN by default)'
+    required: false
+    default: '${{ github.token }}'
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.12'
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '${{ inputs.python-version }}'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install -r ${{ github.action_path }}/../../../requirements.txt
+
+    - name: Run MCP Audit
+      shell: bash
+      env:
+        GITHUB_TOKEN: '${{ inputs.github-token }}'
+      run: |
+        ARGS="--ci --output ${{ inputs.output }}"
+        if [ -n "${{ inputs.config }}" ]; then
+          ARGS="$ARGS --config ${{ inputs.config }}"
+        fi
+        if [ -n "${{ inputs.fail-under }}" ]; then
+          ARGS="$ARGS --fail-under ${{ inputs.fail-under }}"
+        fi
+        if [ "${{ inputs.verbose }}" = "true" ]; then
+          ARGS="$ARGS --verbose"
+        fi
+        python ${{ github.action_path }}/../../../main.py $ARGS
+
+    - name: Upload audit report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-audit-report
+        path: ${{ inputs.output }}
+        retention-days: 30

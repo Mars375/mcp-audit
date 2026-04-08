@@ -39,7 +39,23 @@ Validation : `mcp-audit scan --fail-under 70` retourne exit code 1 si un serveur
 
 ---
 
-## [ ] P4 — GitHub Action prête à l'emploi
-**Objectif** : Action réutilisable publiée sur GitHub Marketplace.
+## [x] P4 — GitHub Action prête à l'emploi
+**Objectif** : Action composite réutilisable pour les workflows GitHub Actions.
 
-Fichier `.github/actions/mcp-audit/action.yml` avec inputs configurables.
+**Résultat** : Implémenté 2026-04-08. `.github/actions/mcp-audit/action.yml` avec 6 inputs (config, fail-under, output, github-token, python-version, verbose). Workflow d'exemple `.github/workflows/audit-example.yml`. README mis à jour avec documentation complète.
+
+Validation : Action composite valide, inputs documentés, artifact upload automatique.
+
+---
+
+## [ ] P5 — Support Smithery registry
+**Objectif** : Détecter et auditer les serveurs MCP installés via Smithery.
+
+Smithery est un registry MCP populaire. Ajouter la résolution automatique des packages Smithery pour scoring qualité + maintenance.
+
+---
+
+## [ ] P6 — Score de risque supply-chain avancé
+**Objectif** : Analyse transitive des dépendances npm/PyPI des serveurs MCP.
+
+Étendre l'audit au-delà du package direct : vérifier les sous-dépendances pour vulnérabilités et risques. Utiliser `pip audit` et `npm audit` quand disponibles.
