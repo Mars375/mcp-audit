@@ -12,8 +12,10 @@
 
 ---
 
-## [ ] P1 — Support config Claude Code MCP (~/.claude/settings.json)
+## [x] P1 — Support config Claude Code MCP (~/.claude/settings.json)
 **Objectif** : Lire et auditer les serveurs MCP configurés dans Claude Code.
+
+**Résultat** : Implémenté 2026-04-08. Auto-détection format (native vs mcpServers), support stdio + HTTP, auto-find chemins. 19 tests, 33 total.
 
 Validation : `mcp-audit scan --config ~/.claude/settings.json` produit un rapport.
 
