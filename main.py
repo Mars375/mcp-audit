@@ -21,8 +21,10 @@ from mcp_audit.config import MCPConfig, find_default_config
 @click.option('--config', '-c', help='Chemin vers la configuration MCP')
 @click.option('--ci', is_flag=True, help='Mode CI (rapport JSON seulement)')
 @click.option('--output', '-o', help='Fichier de sortie pour le rapport JSON')
+@click.option('--fail-under', type=int, default=None,
+              help='Score minimum /100 par serveur. Exit 1 si un serveur est en dessous.')
 @click.option('--verbose', '-v', is_flag=True, help='Mode verbeux')
-def audit(config, ci, output, verbose):
+def audit(config, ci, output, fail_under, verbose):
     """Audit les dependances MCP pour qualite, securite et maintenance.
 
     Format detecte automatiquement : natif, Claude Code, ou .mcp.json.
@@ -94,6 +96,26 @@ def audit(config, ci, output, verbose):
                 with open(output, 'w') as f:
                     json.dump(report, f, indent=2)
                 click.echo(f"Rapport JSON genere: {output}")
+
+        # ── CI gate: --fail-under ──
+        if fail_under is not None:
+            failed_servers = []
+            for dep in audit_results['dependencies']:
+                ts = dep.get('trust_score', {})
+                score = ts.get('score', 0)
+                if score < fail_under:
+                    failed_servers.append((dep['name'], score, ts.get('grade', '?')))
+
+            if failed_servers:
+                msg_lines = [
+                    f"CI FAILED: {len(failed_servers)} server(s) below threshold {fail_under}/100:"
+                ]
+                for name, score, grade in failed_servers:
+                    msg_lines.append(f"  - {name}: {score}/100 (grade {grade})")
+                click.echo('\n'.join(msg_lines), err=True)
+                sys.exit(1)
+            else:
+                click.echo(f"CI PASSED: all servers >= {fail_under}/100")
 
     except FileNotFoundError as e:
         click.echo(f"Erreur: {e}", err=True)
