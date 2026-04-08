@@ -196,11 +196,50 @@ python -m pytest tests/test_claude_code_config.py -v
 - **API Rate Limits** : Respect des limites publiques
 - **Mémoire** : < 50MB pour 100+ dépendances
 
+## Smithery Registry Support
+
+mcp-audit automatically detects and enriches MCP servers installed via [Smithery](https://smithery.ai):
+
+**Detection methods:**
+- `smithery:` prefix in source (e.g., `smithery:owner/server`)
+- `@smithery/cli` in command or args
+- `_registry: smithery` metadata marker
+
+**Enrichment data from Smithery registry:**
+- Security scan status (pass/fail)
+- Tool count and resource count
+- Transport type (stdio / http)
+- Display name and description
+
+**Scoring bonus (up to +10 points):**
+
+| Factor | Bonus |
+|--------|-------|
+| Security scan passed | +5 |
+| High tool count (>=10) | +3 |
+| Medium tool count (>=3) | +1 |
+| Tools + resources both present | +2 |
+
+**Environment variable:**
+- `SMITHERY_API_KEY` - Optional. Enables authenticated API access for private servers.
+
+**Example config:**
+```json
+{
+  "servers": {
+    "my-smithery-srv": {
+      "command": "npx",
+      "args": ["-y", "@smithery/cli", "run", "@owner/server"]
+    }
+  }
+}
+```
+
 ## 🔄 Évolution future
 
 - [ ] Support de registres privés
 - [ ] Dashboard web intégré
-- [ ] Support Smithery registry
+- [x] Support Smithery registry (auto-detect + scoring)
 - [ ] Score de risque supply-chain avancé
 
 ## 📄 Licence
