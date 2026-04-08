@@ -107,6 +107,7 @@ class ReportGenerator:
         table.add_column("Security", justify="right")
         table.add_column("Maint.", justify="right")
         table.add_column("Supply", justify="right")
+        table.add_column("Trans. Risk", justify="right")
         table.add_column("Vulns", justify="right")
 
         for dep in self.results['dependencies']:
@@ -116,6 +117,15 @@ class ReportGenerator:
             grade = ts.get('grade', '?')
             vuln_count = len(dep.get('vulnerabilities', []))
 
+            # Transitive risk display
+            transitive_penalty = ts.get('transitive_risk_penalty', 0)
+            transitive_risk_score = ts.get('transitive_risk_score', None)
+            if transitive_risk_score is not None:
+                tr_color = "red" if transitive_risk_score > 50 else "yellow" if transitive_risk_score > 25 else "green"
+                transitive_display = f"[{tr_color}]{transitive_risk_score} (-{transitive_penalty})[/]"
+            else:
+                transitive_display = "—"
+
             table.add_row(
                 dep['name'],
                 f"[{color}]{score}/100[/]",
@@ -124,6 +134,7 @@ class ReportGenerator:
                 str(ts.get('security', 0)),
                 str(ts.get('maintenance', 0)),
                 str(ts.get('supply_chain', 0)),
+                transitive_display,
                 str(vuln_count),
             )
 

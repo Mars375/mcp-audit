@@ -5,10 +5,10 @@ Composite score /100 based on four pillars:
   - Quality    (0-25): config completeness, source clarity
   - Security   (0-25): vulnerability count & severity
   - Maintenance(0-25): freshness, commit frequency, health
-  - Supply chain (0-25): stars, forks, known publisher, release cadence
+  - Supply chain (0-25): stars, forks, known publisher, release cadence, transitive risk
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
 
 
@@ -26,15 +26,16 @@ def compute_trust_score(dep_result: Dict[str, Any]) -> Dict[str, Any]:
     Args:
         dep_result: A dependency result dict from MCPAudit (must contain
             quality_score, vulnerabilities, maintenance_status, metadata).
+            May also contain "transitive" with a "risk_score" key (0-100).
 
     Returns:
         Dict with keys: score, quality, security, maintenance, supply_chain,
-        grade, color.
+        transitive_risk_penalty, transitive_risk_score, grade, color.
     """
     quality = _quality_pillar(dep_result)
     security = _security_pillar(dep_result)
     maintenance = _maintenance_pillar(dep_result)
-    supply_chain = _supply_chain_pillar(dep_result)
+    supply_chain, transitive_penalty = _supply_chain_pillar(dep_result)
 
     total = quality + security + maintenance + supply_chain
     total = max(0, min(100, total))
@@ -48,7 +49,7 @@ def compute_trust_score(dep_result: Dict[str, Any]) -> Dict[str, Any]:
     else:
         grade, color = "D", "bold red"
 
-    return {
+    result = {
         "score": total,
         "quality": quality,
         "security": security,
@@ -57,6 +58,13 @@ def compute_trust_score(dep_result: Dict[str, Any]) -> Dict[str, Any]:
         "grade": grade,
         "color": color,
     }
+
+    # Expose transitive risk penalty detail when present
+    if transitive_penalty > 0:
+        result["transitive_risk_penalty"] = transitive_penalty
+        result["transitive_risk_score"] = dep_result.get("transitive", {}).get("risk_score", 0)
+
+    return result
 
 
 # ── Pillar helpers ──────────────────────────────────────────────
@@ -101,11 +109,17 @@ def _maintenance_pillar(dep: Dict[str, Any]) -> int:
     return min(25, score)
 
 
-def _supply_chain_pillar(dep: Dict[str, Any]) -> int:
-    """Supply-chain pillar (0-25). Stars, forks, release cadence, known source."""
+def _supply_chain_pillar(dep: Dict[str, Any]) -> Tuple[int, int]:
+    """Supply-chain pillar (0-25). Stars, forks, release cadence, known source,
+    transitive risk penalty.
+
+    Returns:
+        Tuple of (score: int, transitive_penalty: int).
+    """
     ms: Dict[str, Any] = dep.get("maintenance_status", {})
     meta: Dict[str, Any] = dep.get("metadata", {})
     score = 0
+    transitive_penalty = 0
 
     # Stars (0-8)
     stars = ms.get("stars", 0)
@@ -147,7 +161,16 @@ def _supply_chain_pillar(dep: Dict[str, Any]) -> int:
     else:
         score += 0
 
-    return min(25, score)
+    # Transitive risk penalty (P7)
+    # risk_score is 0-100 penalty from supply_chain.py (higher = more risky)
+    transitive = dep.get("transitive", {})
+    risk_score = transitive.get("risk_score", 0) if transitive else 0
+    if risk_score > 75:
+        transitive_penalty = 20
+    elif risk_score > 50:
+        transitive_penalty = 10
+
+    return max(0, min(25, score - transitive_penalty)), transitive_penalty
 
 
 def _freshness_points(date_str: str, max_points: int = 7) -> int:
