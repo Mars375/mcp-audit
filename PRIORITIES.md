@@ -90,10 +90,10 @@ Validation : `mcp-audit scan --verbose` affiche stats cache. Deuxième run = hit
 
 ---
 
-## [ ] P10 — Config .mcp-audit.yaml pour options par défaut
+## [x] P10 — Config .mcp-audit.yaml pour options par défaut
 **Objectif** : Fichier de config utilisateur pour les options par défaut du CLI (cache TTL, fail-under, output format, etc.).
 
-Supporte `~/.config/mcp-audit/config.yaml` et `./.mcp-audit.yaml` (projet). Merge project < user < CLI args. Réduit les flags répétés.
+**Résultat** : Implémenté 2026-04-09. Module user_config.py complet : deux niveaux de config (user ~/.config/mcp-audit/config.yaml + projet .mcp-audit.yaml), merge project > user > CLI, validation types (bool/int/choice/string), intégration Click via ParameterSource enum. Bug fix: enum vs string comparison. 36 tests unitaires. PR #11.
 
 ---
 
