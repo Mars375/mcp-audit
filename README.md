@@ -17,6 +17,7 @@ Mode CI optionnel. Supporte les formats **natif**, **Claude Code** (`~/.claude/s
 - ✅ **API externes** : GitHub, OSV.dev, npm registry
 - ✅ **GitHub Action** : Action composite réutilisable pour vos workflows
 - ✅ **Config utilisateur** : `~/.config/mcp-audit/config.yaml` et `.mcp-audit.yaml`
+- ✅ **Watch mode** : `--watch` relance automatiquement l'audit quand la config change
 
 ## 📦 Installation
 
@@ -50,6 +51,9 @@ python main.py --ci --output audit-report.json
 
 # Générer un rapport Markdown lisible pour une PR ou un README
 python main.py --format markdown --output audit-report.md
+
+# Surveiller une config MCP pendant le développement
+python main.py --config .mcp.json --watch
 
 # CI gate: échoue si un serveur a un score < 70
 python main.py --ci --fail-under 70
@@ -157,6 +161,15 @@ Serveurs: 3
 # Pipeline GitHub Actions
 python main.py --ci --fail-under 70 --output security-audit.json
 ```
+
+## 🔧 Use Case — Watch mode
+
+```bash
+# Relance automatiquement l'audit quand .mcp.json change
+python main.py --config .mcp.json --watch
+```
+
+Le watch mode surveille le fichier de configuration MCP cible et relance immédiatement un audit à chaque modification. Pratique pendant le développement d'un serveur MCP ou d'une config Claude Code.
 
 ## 📁 Structure du projet
 ```

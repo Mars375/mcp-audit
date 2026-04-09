@@ -90,10 +90,12 @@ Validation : `mcp-audit scan --verbose` affiche stats cache. Deuxième run = hit
 
 ---
 
-## [ ] P10 — Config .mcp-audit.yaml pour options par défaut
+## [x] P10 — Config .mcp-audit.yaml pour options par défaut
 **Objectif** : Fichier de config utilisateur pour les options par défaut du CLI (cache TTL, fail-under, output format, etc.).
 
-Supporte `~/.config/mcp-audit/config.yaml` et `./.mcp-audit.yaml` (projet). Merge project < user < CLI args. Réduit les flags répétés.
+**Résultat** : Implémenté 2026-04-09. Support de `~/.config/mcp-audit/config.yaml` et `./.mcp-audit.yaml`, merge user < project < CLI, validation des clés/valeurs, génération de config sample, 32 tests dédiés.
+
+Validation : `python main.py --config sample_config.json` applique les defaults définis dans les fichiers YAML sans écraser les flags CLI explicites.
 
 ---
 
@@ -106,7 +108,9 @@ Validation : `python main.py --format markdown --output audit-report.md` génèr
 
 ---
 
-## [ ] P12 — Watch mode (audit continu)
+## [x] P12 — Watch mode (audit continu)
 **Objectif** : Mode surveillance qui re-audite automatiquement quand la config MCP change.
 
-Option `--watch` : surveille le fichier de config et re-exécute l'audit à chaque modification. Idéal pour le développement de serveurs MCP.
+**Résultat** : Implémenté 2026-04-09. Option CLI `--watch`, boucle de surveillance légère sans dépendance externe, ré-audit automatique au changement de fichier, fonctionnement non interactif en watch mode, 3 tests dédiés, 279 tests verts.
+
+Validation : `python main.py --config .mcp.json --watch` relance un audit dès que le fichier surveillé change.
