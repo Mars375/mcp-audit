@@ -6,6 +6,10 @@ Supporte les formats de configuration :
   - Natif mcp-audit : { "servers", "tools", "resources" }
   - Claude Code     : ~/.claude/settings.json avec "mcpServers"
   - .mcp.json       : Configuration projet Claude Code
+
+User config (optional):
+  - ~/.config/mcp-audit/config.yaml  (user-level defaults)
+  - ./.mcp-audit.yaml               (project-level overrides)
 """
 
 import click
@@ -16,6 +20,7 @@ from pathlib import Path
 from mcp_audit.audit import MCPAudit
 from mcp_audit.config import MCPConfig, find_default_config
 from mcp_audit.cache import init_cache, get_cache
+from mcp_audit.user_config import load_merged_config, apply_config_to_cli
 
 
 @click.command()
@@ -30,12 +35,30 @@ from mcp_audit.cache import init_cache, get_cache
 @click.option('--cache-ttl', type=int, default=86400,
               help='TTL du cache en secondes (defaut: 86400 = 24h).')
 @click.option('--verbose', '-v', is_flag=True, help='Mode verbeux')
-def audit(config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbose):
+@click.pass_context
+def audit(ctx, config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbose):
     """Audit les dependances MCP pour qualite, securite et maintenance.
 
     Format detecte automatiquement : natif, Claude Code, ou .mcp.json.
     Si --config n'est pas specifie, cherche dans les chemins par defaut.
+
+    Options par defaut chargees depuis ~/.config/mcp-audit/config.yaml
+    et ./.mcp-audit.yaml (projet). Les flags CLI ont la priorite.
     """
+
+    # ── Apply user config file as defaults ──
+    file_cfg = load_merged_config()
+    if file_cfg:
+        apply_config_to_cli(ctx, file_cfg)
+        # Re-read potentially overridden params
+        config = ctx.params['config']
+        ci = ctx.params['ci']
+        output = ctx.params['output']
+        fail_under = ctx.params['fail_under']
+        sbom = ctx.params['sbom']
+        no_cache = ctx.params['no_cache']
+        cache_ttl = ctx.params['cache_ttl']
+        verbose = ctx.params['verbose']
 
     try:
         # Resoudre le chemin de config
@@ -65,6 +88,8 @@ def audit(config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbose):
             click.echo(f"Configuration chargee depuis: {config_path}")
             click.echo(f"Format detecte: {mcp_config.source_format}")
             click.echo(f"Serveurs: {len(mcp_config.servers)}")
+            if file_cfg:
+                click.echo(f"Config utilisateur: {list(file_cfg.keys())}")
 
         # Initialiser le cache
         cache = init_cache(enabled=not no_cache, ttl=cache_ttl, verbose=verbose)
