@@ -25,8 +25,8 @@ from mcp_audit.user_config import load_merged_config, apply_config_to_cli
 
 @click.command()
 @click.option('--config', '-c', help='Chemin vers la configuration MCP')
-@click.option('--ci', is_flag=True, help='Mode CI (rapport JSON seulement)')
-@click.option('--output', '-o', help='Fichier de sortie pour le rapport JSON')
+@click.option('--ci', is_flag=True, help='Mode CI (non interactif, JSON par defaut)')
+@click.option('--output', '-o', help='Fichier de sortie pour le rapport (JSON/Markdown) ou SBOM.')
 @click.option('--fail-under', type=int, default=None,
               help='Score minimum /100 par serveur. Exit 1 si un serveur est en dessous.')
 @click.option('--sbom', type=click.Choice(['cyclonedx', 'spdx']), default=None,
@@ -34,9 +34,11 @@ from mcp_audit.user_config import load_merged_config, apply_config_to_cli
 @click.option('--no-cache', is_flag=True, help='Desactiver le cache des requetes registry.')
 @click.option('--cache-ttl', type=int, default=86400,
               help='TTL du cache en secondes (defaut: 86400 = 24h).')
+@click.option('--format', '-f', 'fmt', type=click.Choice(['terminal', 'json', 'markdown']), default=None,
+              help='Format de sortie: terminal (defaut), json, markdown.')
 @click.option('--verbose', '-v', is_flag=True, help='Mode verbeux')
 @click.pass_context
-def audit(ctx, config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbose):
+def audit(ctx, config, ci, output, fail_under, sbom, no_cache, cache_ttl, fmt, verbose):
     """Audit les dependances MCP pour qualite, securite et maintenance.
 
     Format detecte automatiquement : natif, Claude Code, ou .mcp.json.
@@ -58,6 +60,7 @@ def audit(ctx, config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbos
         sbom = ctx.params['sbom']
         no_cache = ctx.params['no_cache']
         cache_ttl = ctx.params['cache_ttl']
+        fmt = ctx.params['fmt']
         verbose = ctx.params['verbose']
 
     try:
@@ -117,13 +120,25 @@ def audit(ctx, config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbos
         from mcp_audit.report import ReportGenerator
         generator = ReportGenerator(audit_results, verbose=verbose)
 
-        if ci:
-            # Mode CI: rapport JSON seulement
+        # Resolve effective format (CLI > user config > default)
+        effective_fmt = fmt or 'terminal'
+
+        if effective_fmt == 'markdown':
+            # Markdown report
+            md_report = generator.generate_markdown_report()
+            if output:
+                with open(output, 'w') as f:
+                    f.write(md_report)
+                click.echo(f"Rapport Markdown genere: {output}")
+            else:
+                click.echo(md_report)
+        elif ci or effective_fmt == 'json':
+            # JSON report (CI mode or explicit --format json)
             report = generator.generate_json_report()
             output_path = output or 'mcp-audit-report.json'
             with open(output_path, 'w') as f:
                 json.dump(report, f, indent=2)
-            click.echo(f"Rapport CI genere: {output_path}")
+            click.echo(f"Rapport JSON genere: {output_path}")
         else:
             # Mode interactif: rapport terminal + option JSON
             terminal_report = generator.generate_terminal_report()

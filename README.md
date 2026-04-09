@@ -2,7 +2,7 @@
 
 CLI Python pour auditer les dépendances MCP — qualité, sécurité, maintenance, risques supply chain.
 
-Lit votre config MCP, interroge OSV.dev + GitHub API + npm registry, produit un rapport terminal + JSON.
+Lit votre config MCP, interroge OSV.dev + GitHub API + npm registry, produit un rapport terminal + JSON + Markdown.
 Mode CI optionnel. Supporte les formats **natif**, **Claude Code** (`~/.claude/settings.json`), et **`.mcp.json`**.
 
 ## 🚀 Fonctionnalités
@@ -12,10 +12,11 @@ Mode CI optionnel. Supporte les formats **natif**, **Claude Code** (`~/.claude/s
 - ✅ **Audit qualité** : Évaluation 0-100 basée sur métriques réelles
 - ✅ **Sécurité** : Détection de vulnérabilités via OSV.dev
 - ✅ **Maintenance** : Statut GitHub, fréquence des commits, releases
-- ✅ **Rapports** : Terminal coloré (Rich) + export JSON
+- ✅ **Rapports** : Terminal coloré (Rich) + export JSON + Markdown
 - ✅ **Mode CI** : Rapport léger + `--fail-under` pour bloquer les merges
 - ✅ **API externes** : GitHub, OSV.dev, npm registry
 - ✅ **GitHub Action** : Action composite réutilisable pour vos workflows
+- ✅ **Config utilisateur** : `~/.config/mcp-audit/config.yaml` et `.mcp-audit.yaml`
 
 ## 📦 Installation
 
@@ -46,6 +47,9 @@ python main.py --config .mcp.json
 
 # Mode CI (rapport JSON seulement)
 python main.py --ci --output audit-report.json
+
+# Générer un rapport Markdown lisible pour une PR ou un README
+python main.py --format markdown --output audit-report.md
 
 # CI gate: échoue si un serveur a un score < 70
 python main.py --ci --fail-under 70
@@ -78,7 +82,7 @@ jobs:
 |-------|-------------|--------|
 | `config` | Chemin vers la config MCP (auto-détecté si vide) | `""` |
 | `fail-under` | Score minimum /100 pour réussir | `""` |
-| `output` | Chemin du rapport JSON | `mcp-audit-report.json` |
+| `output` | Chemin du rapport JSON/Markdown | `mcp-audit-report.json` |
 | `github-token` | Token GitHub pour les appels API | `${{ github.token }}` |
 | `python-version` | Version Python | `3.12` |
 | `verbose` | Sortie verbeuse | `false` |

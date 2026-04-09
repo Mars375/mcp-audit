@@ -97,10 +97,12 @@ Supporte `~/.config/mcp-audit/config.yaml` et `./.mcp-audit.yaml` (projet). Merg
 
 ---
 
-## [ ] P11 — Format de rapport Markdown
+## [x] P11 — Format de rapport Markdown
 **Objectif** : Ajouter un format de rapport Markdown en plus de terminal + JSON.
 
-Option `--format markdown` pour générer un rapport .md lisible avec badges, tableaux, et liens cliquables. Utile pour les README de projets et les PR reviews.
+**Résultat** : Implémenté 2026-04-09. Option `--format markdown`, export fichier `.md`, génération Markdown avec sections résumé / trust score / dépendances transitives / vulnérabilités / recommandations. Support config utilisateur `format: markdown`. README mis à jour. 8 nouveaux tests dédiés, 276 tests verts.
+
+Validation : `python main.py --format markdown --output audit-report.md` génère un rapport Markdown lisible.
 
 ---
 
