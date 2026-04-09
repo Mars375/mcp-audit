@@ -290,3 +290,40 @@ class TestInitConfigFile:
             assert result == target
             assert target.exists()
             target.unlink()
+
+
+class TestFormatValidation:
+    def test_choice_valid_format(self):
+        assert _validate_value('format', 'markdown') == 'markdown'
+        assert _validate_value('format', 'JSON') == 'json'
+
+    def test_choice_invalid_format(self):
+        assert _validate_value('format', 'html') is None
+
+
+class TestApplyConfigFormat:
+    def test_applies_format_default(self):
+        import click
+
+        @click.command()
+        @click.option('--format', 'fmt', default=None)
+        @click.pass_context
+        def dummy(ctx, fmt):
+            pass
+
+        with dummy.make_context('dummy', []) as ctx:
+            apply_config_to_cli(ctx, {'format': 'markdown'})
+            assert ctx.params['fmt'] == 'markdown'
+
+    def test_does_not_override_explicit_format(self):
+        import click
+
+        @click.command()
+        @click.option('--format', 'fmt', default=None)
+        @click.pass_context
+        def dummy(ctx, fmt):
+            pass
+
+        with dummy.make_context('dummy', ['--format', 'json']) as ctx:
+            apply_config_to_cli(ctx, {'format': 'markdown'})
+            assert ctx.params['fmt'] == 'json'

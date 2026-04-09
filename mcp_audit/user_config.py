@@ -15,7 +15,7 @@ Config file example::
     cache-ttl: 43200
     verbose: true
     output: mcp-audit-report.json
-    format: terminal   # terminal | json | markdown (future)
+    format: terminal   # terminal | json | markdown
 
     # ./.mcp-audit.yaml  (project overrides)
     fail-under: 80
@@ -45,6 +45,7 @@ INT_KEYS = frozenset({'fail-under', 'cache-ttl'})
 # Keys that have constrained choices
 CHOICE_KEYS = {
     'sbom': ('cyclonedx', 'spdx'),
+    'format': ('terminal', 'json', 'markdown'),
 }
 
 
@@ -160,6 +161,7 @@ def apply_config_to_cli(
         'no-cache': 'no_cache',
         'cache-ttl': 'cache_ttl',
         'verbose': 'verbose',
+        'format': 'fmt',
     }
 
     for config_key, param_name in param_map.items():
@@ -196,6 +198,9 @@ def generate_sample_config() -> str:
 
 # Cache TTL in seconds (default: 86400 = 24h)
 # cache-ttl: 86400
+
+# Default report format
+# format: terminal  # terminal | json | markdown
 
 # Verbose mode
 # verbose: false
