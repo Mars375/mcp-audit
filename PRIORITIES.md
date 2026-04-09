@@ -66,21 +66,45 @@ Validation : serveurs npm/PyPI → arbre de dépendances résolu avec vulnérabi
 
 ---
 
-## [~] P7 — Score de risque supply-chain dans le trust score composite
+## [x] P7 — Score de risque supply-chain dans le trust score composite
 **Objectif** : Intégrer le `transitive.risk_score` de P6 dans le pillar supply-chain de `scoring.py`.
 
 Ajuster `_supply_chain_pillar()` pour pénaliser les serveurs dont le risque transitif est élevé (risk_score > 50 → -10, > 75 → -20). Afficher le détail dans le JSON report.
 
 ---
 
-## [ ] P8 — SBOM export (CycloneDX / SPDX)
+## [x] P8 — SBOM export (CycloneDX / SPDX)
 **Objectif** : Exporter la liste complète des dépendances transitives au format CycloneDX JSON ou SPDX.
 
 Ajouter option CLI `--sbom cyclonedx|spdx`. Utilise les données de `supply_chain.py` pour générer un SBOM standardisé. Intégration CI possible avec dependency-track ou grype.
 
 ---
 
-## [ ] P9 — Cache intelligent des requêtes registry
+## [x] P9 — Cache intelligent des requêtes registry
 **Objectif** : Mettre en cache les réponses npm/PyPI/OSV.dev pour accélérer les audits répétés.
 
-Cache local JSON avec TTL (24h par défaut). Réduit les appels réseau de ~80% en usage quotidien. Option `--no-cache` pour forcer le refresh.
+**Résultat** : Implémenté 2026-04-09. Module cache.py complet : cache JSON fichier avec TTL configurable (24h defaut), clé déterministe GET/POST (hash SHA256 du body), stats hit/miss, cleanup expired, singleton global. Intégré dans audit.py, supply_chain.py, smithery.py. CLI --no-cache et --cache-ttl. 38 tests unitaires, conftest.py pour isolation.
+
+Validation : `mcp-audit scan --verbose` affiche stats cache. Deuxième run = hits sur toutes les requêtes registry.
+
+
+---
+
+## [ ] P10 — Config .mcp-audit.yaml pour options par défaut
+**Objectif** : Fichier de config utilisateur pour les options par défaut du CLI (cache TTL, fail-under, output format, etc.).
+
+Supporte `~/.config/mcp-audit/config.yaml` et `./.mcp-audit.yaml` (projet). Merge project < user < CLI args. Réduit les flags répétés.
+
+---
+
+## [ ] P11 — Format de rapport Markdown
+**Objectif** : Ajouter un format de rapport Markdown en plus de terminal + JSON.
+
+Option `--format markdown` pour générer un rapport .md lisible avec badges, tableaux, et liens cliquables. Utile pour les README de projets et les PR reviews.
+
+---
+
+## [ ] P12 — Watch mode (audit continu)
+**Objectif** : Mode surveillance qui re-audite automatiquement quand la config MCP change.
+
+Option `--watch` : surveille le fichier de config et re-exécute l'audit à chaque modification. Idéal pour le développement de serveurs MCP.

@@ -16,6 +16,8 @@ from urllib.parse import quote
 
 import requests
 
+from .cache import get_cache
+
 
 # ── Data classes (plain dicts for simplicity) ──────────────────
 
@@ -213,11 +215,11 @@ def _resolve_npm_deps_osv(
     vulns: List[Dict[str, Any]] = []
 
     encoded = quote(package_name, safe="")
+    cache = get_cache()
     try:
-        resp = requests.get(f"https://registry.npmjs.org/{encoded}", timeout=15)
-        if resp.status_code != 200:
+        data = cache.cached_get(f"https://registry.npmjs.org/{encoded}", timeout=15)
+        if not data:
             return deps, vulns
-        data = resp.json()
     except Exception:
         return deps, vulns
 
@@ -261,10 +263,10 @@ def _get_npm_dep_names(package_name: str, *, verbose: bool = False) -> List[str]
     """Get direct dependency names for an npm package."""
     encoded = quote(package_name, safe="")
     try:
-        resp = requests.get(f"https://registry.npmjs.org/{encoded}", timeout=10)
-        if resp.status_code != 200:
+        cache = get_cache()
+        data = cache.cached_get(f"https://registry.npmjs.org/{encoded}", timeout=10)
+        if not data:
             return []
-        data = resp.json()
         latest = data.get("dist-tags", {}).get("latest")
         if not latest:
             return []
@@ -372,11 +374,11 @@ def _resolve_pypi_deps_osv(
     deps: List[Dict[str, Any]] = []
     vulns: List[Dict[str, Any]] = []
 
+    cache = get_cache()
     try:
-        resp = requests.get(f"https://pypi.org/pypi/{package_name}/json", timeout=15)
-        if resp.status_code != 200:
+        data = cache.cached_get(f"https://pypi.org/pypi/{package_name}/json", timeout=15)
+        if not data:
             return deps, vulns
-        data = resp.json()
     except Exception:
         return deps, vulns
 
@@ -429,10 +431,10 @@ def _resolve_pypi_deps_osv(
 def _get_pypi_dep_names(package_name: str, *, verbose: bool = False) -> List[str]:
     """Get direct dependency names for a PyPI package."""
     try:
-        resp = requests.get(f"https://pypi.org/pypi/{package_name}/json", timeout=10)
-        if resp.status_code != 200:
+        cache = get_cache()
+        data = cache.cached_get(f"https://pypi.org/pypi/{package_name}/json", timeout=10)
+        if not data:
             return []
-        data = resp.json()
         requires_dist = data.get("info", {}).get("requires_dist") or []
         result = []
         for req in requires_dist:
@@ -469,10 +471,10 @@ def _osv_query(
                 "ecosystem": ecosystem,
             }
         }
-        resp = requests.post("https://api.osv.dev/v1/query", json=payload, timeout=10)
-        if resp.status_code != 200:
+        cache = get_cache()
+        data = cache.cached_post("https://api.osv.dev/v1/query", payload, timeout=10)
+        if not data:
             return vulns
-        data = resp.json()
         for v in data.get("vulns", []):
             severity = _parse_osv_severity(v)
             vulns.append({

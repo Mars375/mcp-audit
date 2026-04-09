@@ -23,6 +23,7 @@ from .smithery import (
     compute_smithery_bonus,
 )
 from .supply_chain import analyze_transitive_deps
+from .cache import get_cache
 
 
 class MCPAudit:
@@ -269,9 +270,9 @@ class MCPAudit:
                 }
             }
 
-            response = requests.post(osv_url, json=payload, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
+            cache = get_cache()
+            data = cache.cached_post(osv_url, payload, timeout=10)
+            if data:
                 for vuln in data.get('vulns', []):
                     severity = self._parse_severity(vuln.get('severity', []))
                     if severity:
@@ -417,16 +418,15 @@ class MCPAudit:
             if github_token:
                 headers['Authorization'] = f'token {github_token}'
 
-            response = requests.get(api_url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
+            cache = get_cache()
+            data = cache.cached_get(api_url, headers=headers, timeout=10)
+            if data:
 
                 commit_frequency = 'unknown'
                 try:
                     commits_url = f"{api_url}/stats/participation"
-                    commits_response = requests.get(commits_url, headers=headers, timeout=5)
-                    if commits_response.status_code == 200:
-                        participation = commits_response.json()
+                    participation = cache.cached_get(commits_url, headers=headers, timeout=5)
+                    if participation:
                         recent_commits = sum(participation.get('all', [])[-4:])
                         if recent_commits > 20:
                             commit_frequency = 'high'
@@ -465,9 +465,9 @@ class MCPAudit:
         """Obtient la derniere release d'un repo GitHub."""
         try:
             api_url = f"https://api.github.com/repos/{repo}/releases/latest"
-            response = requests.get(api_url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
+            cache = get_cache()
+            data = cache.cached_get(api_url, headers=headers, timeout=5)
+            if data:
                 return data.get('published_at', 'unknown')
         except Exception:
             pass
@@ -492,9 +492,9 @@ class MCPAudit:
             encoded_name = quote(package_name, safe='')
 
             api_url = f"https://registry.npmjs.org/{encoded_name}"
-            response = requests.get(api_url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
+            cache = get_cache()
+            data = cache.cached_get(api_url, timeout=10)
+            if data:
 
                 versions = data.get('time', {})
                 last_version = data.get('dist-tags', {}).get('latest')
@@ -538,10 +538,11 @@ class MCPAudit:
         """Verifie les infos d'un package PyPI par nom."""
         try:
             api_url = f"https://pypi.org/pypi/{package_name}/json"
-            response = requests.get(api_url, timeout=10)
-            if response.status_code == 200:
-                data = response.json().get('info', {})
-                releases = response.json().get('releases', {})
+            cache = get_cache()
+            raw = cache.cached_get(api_url, timeout=10)
+            if raw:
+                data = raw.get('info', {})
+                releases = raw.get('releases', {})
 
                 latest_version = data.get('version')
                 release_entries = releases.get(latest_version, []) if latest_version else []

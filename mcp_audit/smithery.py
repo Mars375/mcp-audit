@@ -13,6 +13,8 @@ from urllib.parse import quote
 
 import requests
 
+from .cache import get_cache
+
 
 SMITHERY_REGISTRY_URL = "https://registry.smithery.ai"
 SMITHERY_API_URL = "https://api.smithery.ai"
@@ -106,9 +108,9 @@ def fetch_server_info(qualified_name: str, verbose: bool = False) -> Optional[Di
     try:
         encoded = quote(qualified_name, safe="")
         url = f"{SMITHERY_REGISTRY_URL}/servers/{encoded}"
-        resp = requests.get(url, headers=_headers(), timeout=10)
-        if resp.status_code == 200:
-            data = resp.json()
+        cache = get_cache()
+        data = cache.cached_get(url, headers=_headers(), timeout=10)
+        if data:
             return _normalize_server(data)
     except Exception as exc:
         if verbose:
@@ -118,9 +120,9 @@ def fetch_server_info(qualified_name: str, verbose: bool = False) -> Optional[Di
     if os.environ.get("SMITHERY_API_KEY"):
         try:
             url = f"{SMITHERY_API_URL}/servers/{quote(qualified_name, safe='')}"
-            resp = requests.get(url, headers=_headers(), timeout=10)
-            if resp.status_code == 200:
-                return _normalize_server(resp.json())
+            data = cache.cached_get(url, headers=_headers(), timeout=10)
+            if data:
+                return _normalize_server(data)
         except requests.RequestException:
             pass
 
@@ -135,9 +137,9 @@ def search_servers(query: str, page: int = 1, page_size: int = 10, verbose: bool
     try:
         params = {"q": query, "page": page, "pageSize": page_size}
         url = f"{SMITHERY_REGISTRY_URL}/servers"
-        resp = requests.get(url, headers=_headers(), params=params, timeout=15)
-        if resp.status_code == 200:
-            data = resp.json()
+        cache = get_cache()
+        data = cache.cached_get(url, headers=_headers(), params=params, timeout=15)
+        if data:
             servers = [_normalize_summary(s) for s in data.get("servers", [])]
             return {
                 "servers": servers,

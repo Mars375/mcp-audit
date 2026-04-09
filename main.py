@@ -15,6 +15,7 @@ from pathlib import Path
 
 from mcp_audit.audit import MCPAudit
 from mcp_audit.config import MCPConfig, find_default_config
+from mcp_audit.cache import init_cache, get_cache
 
 
 @click.command()
@@ -25,8 +26,11 @@ from mcp_audit.config import MCPConfig, find_default_config
               help='Score minimum /100 par serveur. Exit 1 si un serveur est en dessous.')
 @click.option('--sbom', type=click.Choice(['cyclonedx', 'spdx']), default=None,
               help='Exporter un SBOM au format CycloneDX ou SPDX.')
+@click.option('--no-cache', is_flag=True, help='Desactiver le cache des requetes registry.')
+@click.option('--cache-ttl', type=int, default=86400,
+              help='TTL du cache en secondes (defaut: 86400 = 24h).')
 @click.option('--verbose', '-v', is_flag=True, help='Mode verbeux')
-def audit(config, ci, output, fail_under, sbom, verbose):
+def audit(config, ci, output, fail_under, sbom, no_cache, cache_ttl, verbose):
     """Audit les dependances MCP pour qualite, securite et maintenance.
 
     Format detecte automatiquement : natif, Claude Code, ou .mcp.json.
@@ -61,6 +65,9 @@ def audit(config, ci, output, fail_under, sbom, verbose):
             click.echo(f"Configuration chargee depuis: {config_path}")
             click.echo(f"Format detecte: {mcp_config.source_format}")
             click.echo(f"Serveurs: {len(mcp_config.servers)}")
+
+        # Initialiser le cache
+        cache = init_cache(enabled=not no_cache, ttl=cache_ttl, verbose=verbose)
 
         # Initialiser l'audit
         auditor = MCPAudit(mcp_config, verbose=verbose)
@@ -110,6 +117,12 @@ def audit(config, ci, output, fail_under, sbom, verbose):
                 with open(output, 'w') as f:
                     json.dump(report, f, indent=2)
                 click.echo(f"Rapport JSON genere: {output}")
+
+        # ── Cache stats ──
+        if verbose:
+            stats = get_cache().stats()
+            if stats['enabled'] and stats['total'] > 0:
+                click.echo(f"Cache: {stats['hits']}/{stats['total']} hits ({stats['hit_rate']:.0%})")
 
         # ── CI gate: --fail-under ──
         _ci_gate(fail_under, audit_results)
