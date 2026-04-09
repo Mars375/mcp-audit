@@ -23,8 +23,10 @@ from mcp_audit.config import MCPConfig, find_default_config
 @click.option('--output', '-o', help='Fichier de sortie pour le rapport JSON')
 @click.option('--fail-under', type=int, default=None,
               help='Score minimum /100 par serveur. Exit 1 si un serveur est en dessous.')
+@click.option('--sbom', type=click.Choice(['cyclonedx', 'spdx']), default=None,
+              help='Exporter un SBOM au format CycloneDX ou SPDX.')
 @click.option('--verbose', '-v', is_flag=True, help='Mode verbeux')
-def audit(config, ci, output, fail_under, verbose):
+def audit(config, ci, output, fail_under, sbom, verbose):
     """Audit les dependances MCP pour qualite, securite et maintenance.
 
     Format detecte automatiquement : natif, Claude Code, ou .mcp.json.
@@ -67,6 +69,18 @@ def audit(config, ci, output, fail_under, verbose):
         click.echo("Debut de l'audit MCP...")
         audit_results = auditor.audit()
 
+        # ── SBOM export mode ──
+        if sbom:
+            from mcp_audit.sbom import generate_sbom
+            sbom_json = generate_sbom(audit_results, fmt=sbom)
+            output_path = output or f"mcp-audit-sbom-{sbom}.json"
+            with open(output_path, 'w') as f:
+                f.write(sbom_json)
+            click.echo(f"SBOM {sbom} genere: {output_path}")
+            # Still run CI gate if requested
+            _ci_gate(fail_under, audit_results)
+            return
+
         # Generer le rapport
         from mcp_audit.report import ReportGenerator
         generator = ReportGenerator(audit_results, verbose=verbose)
@@ -98,24 +112,7 @@ def audit(config, ci, output, fail_under, verbose):
                 click.echo(f"Rapport JSON genere: {output}")
 
         # ── CI gate: --fail-under ──
-        if fail_under is not None:
-            failed_servers = []
-            for dep in audit_results['dependencies']:
-                ts = dep.get('trust_score', {})
-                score = ts.get('score', 0)
-                if score < fail_under:
-                    failed_servers.append((dep['name'], score, ts.get('grade', '?')))
-
-            if failed_servers:
-                msg_lines = [
-                    f"CI FAILED: {len(failed_servers)} server(s) below threshold {fail_under}/100:"
-                ]
-                for name, score, grade in failed_servers:
-                    msg_lines.append(f"  - {name}: {score}/100 (grade {grade})")
-                click.echo('\n'.join(msg_lines), err=True)
-                sys.exit(1)
-            else:
-                click.echo(f"CI PASSED: all servers >= {fail_under}/100")
+        _ci_gate(fail_under, audit_results)
 
     except FileNotFoundError as e:
         click.echo(f"Erreur: {e}", err=True)
@@ -126,6 +123,29 @@ def audit(config, ci, output, fail_under, verbose):
             import traceback
             traceback.print_exc()
         sys.exit(1)
+
+
+def _ci_gate(fail_under, audit_results):
+    """Check --fail-under threshold and exit if needed."""
+    if fail_under is None:
+        return
+    failed_servers = []
+    for dep in audit_results['dependencies']:
+        ts = dep.get('trust_score', {})
+        score = ts.get('score', 0)
+        if score < fail_under:
+            failed_servers.append((dep['name'], score, ts.get('grade', '?')))
+
+    if failed_servers:
+        msg_lines = [
+            f"CI FAILED: {len(failed_servers)} server(s) below threshold {fail_under}/100:"
+        ]
+        for name, score, grade in failed_servers:
+            msg_lines.append(f"  - {name}: {score}/100 (grade {grade})")
+        click.echo('\n'.join(msg_lines), err=True)
+        sys.exit(1)
+    else:
+        click.echo(f"CI PASSED: all servers >= {fail_under}/100")
 
 
 if __name__ == '__main__':
