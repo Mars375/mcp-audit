@@ -68,7 +68,7 @@ jobs:
   mcp-security-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: MCP Audit
         uses: Mars375/mcp-audit/.github/actions/mcp-audit@master

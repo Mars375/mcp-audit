@@ -34,7 +34,7 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '${{ inputs.python-version }}'
 
@@ -62,7 +62,7 @@ runs:
 
     - name: Upload audit report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: mcp-audit-report
         path: ${{ inputs.output }}
